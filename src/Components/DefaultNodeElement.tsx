@@ -1,5 +1,5 @@
 import React from 'react';
-import { NodeData } from './types';
+import { NodeData } from '../types';
 
 const styles = {
   container: {

@@ -10,10 +10,10 @@ import {
   CENTER_OFFSET_X,
   CENTER_OFFSET_Y,
   TWEEN_DURATION,
-} from './constants';
-import { flattenTree, getChildrenIds } from './utils';
-import { DefaultNodeElement } from './DefaultNodeElement';
-import { ZoomControls } from './ZoomControls';
+} from '../constants';
+import { flattenTree, getChildrenIds } from '../utils';
+import { DefaultNodeElement } from '../Components/DefaultNodeElement';
+import { ZoomControls } from '../Components/ZoomControls';
 import type {
   NodeData,
   VirtualizedTreeProps,
@@ -21,7 +21,7 @@ import type {
   StageSize,
   ViewportBounds,
   LineData,
-} from './types';
+} from '../types';
 
 export function VirtualizedTree<T>({
   data,
@@ -49,12 +49,12 @@ export function VirtualizedTree<T>({
 
   // Flatten data for easy lookup
   const treeData = useMemo(() => flattenTree(data), [data]);
-  
+
   // State for levels and expansion
   const [levelsData, setLevelsData] = useState<number[][]>([[data.id]]);
   const [toggle, setToggle] = useState<Record<number, number | null>>({});
   const [levelOffset, setLevelOffset] = useState<Record<number, number>>({ 0: 0 });
-  
+
   const [stagePos, setStagePos] = useState<StagePosition>({
     x: stageSize.width / 2 - HALF_MARGIN_X - CENTER_OFFSET_X,
     y: stageSize.height / 2 - HALF_MARGIN_Y - CENTER_OFFSET_Y,

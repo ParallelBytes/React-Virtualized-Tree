@@ -1,3 +1,3 @@
-export * from './VirtualizedTree';
-export * from './DefaultNodeElement';
+export * from './Canvas';
+export * from './Components/DefaultNodeElement';
 export * from './types';
