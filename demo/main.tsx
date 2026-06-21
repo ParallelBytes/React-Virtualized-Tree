@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { VirtualizedTree } from '../src/VirtualizedTree';
+import { VirtualizedTree } from '../src/Canvas';
 import { NodeData } from '../src/types';
 
 function generateStaticTreeData(): NodeData<{ label: string }> {
@@ -52,8 +52,8 @@ function generateStaticTreeData(): NodeData<{ label: string }> {
 
 const App = () => {
   const treeData = React.useMemo(() => generateStaticTreeData(), []);
-  const actualNodesCreated = 20001; 
-  const virtualTotalNodes = 100010001; 
+  const actualNodesCreated = 20001;
+  const virtualTotalNodes = 100010001;
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
   const [isMobile, setIsMobile] = React.useState(window.innerWidth < 768);
 
@@ -93,29 +93,29 @@ const App = () => {
             cursor: 'pointer',
             boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
             padding: 0,
-            display:isSidebarOpen?"none":"flex"
+            display: isSidebarOpen ? "none" : "flex"
           }}
           aria-label="Toggle menu"
         >
-          <span style={{ 
-            width: '20px', 
-            height: '2px', 
+          <span style={{
+            width: '20px',
+            height: '2px',
             background: '#2c3e50',
             borderRadius: '2px',
             transition: 'all 0.3s ease',
             transform: isSidebarOpen ? 'rotate(45deg) translateY(7px)' : 'none',
           }} />
-          <span style={{ 
-            width: '20px', 
-            height: '2px', 
+          <span style={{
+            width: '20px',
+            height: '2px',
             background: '#2c3e50',
             borderRadius: '2px',
             transition: 'all 0.3s ease',
             opacity: isSidebarOpen ? 0 : 1,
           }} />
-          <span style={{ 
-            width: '20px', 
-            height: '2px', 
+          <span style={{
+            width: '20px',
+            height: '2px',
             background: '#2c3e50',
             borderRadius: '2px',
             transition: 'all 0.3s ease',
@@ -185,9 +185,9 @@ const App = () => {
           </button>
         )}
 
-        <h2 style={{ 
-          margin: 0, 
-          fontSize: '22px', 
+        <h2 style={{
+          margin: 0,
+          fontSize: '22px',
           fontWeight: '600',
           letterSpacing: '-0.5px',
           color: '#2c3e50',
@@ -197,7 +197,7 @@ const App = () => {
         </h2>
 
         {/* Tree Statistics */}
-        <div style={{ 
+        <div style={{
           padding: '16px',
           background: '#ffffff',
           borderRadius: '8px',
@@ -206,16 +206,16 @@ const App = () => {
           flexDirection: 'column',
           gap: '12px',
         }}>
-          <div style={{ 
-            fontSize: '13px', 
-            fontWeight: '600', 
+          <div style={{
+            fontSize: '13px',
+            fontWeight: '600',
             color: '#2c3e50',
             textTransform: 'uppercase',
             letterSpacing: '0.5px',
           }}>
             Tree Statistics
           </div>
-          
+
           <div style={{
             display: 'flex',
             justifyContent: 'space-between',
@@ -224,9 +224,9 @@ const App = () => {
             borderBottom: '1px solid #e0e0e0',
           }}>
             <span style={{ fontSize: '14px', color: '#6c757d' }}>Nodes Created:</span>
-            <span style={{ 
-              fontSize: '18px', 
-              fontWeight: '700', 
+            <span style={{
+              fontSize: '18px',
+              fontWeight: '700',
               color: '#2c3e50',
               fontFamily: 'monospace',
             }}>
@@ -242,9 +242,9 @@ const App = () => {
             borderBottom: '1px solid #e0e0e0',
           }}>
             <span style={{ fontSize: '14px', color: '#6c757d' }}>Virtual Total:</span>
-            <span style={{ 
-              fontSize: '16px', 
-              fontWeight: '600', 
+            <span style={{
+              fontSize: '16px',
+              fontWeight: '600',
               color: '#6c757d',
               fontFamily: 'monospace',
             }}>
@@ -270,9 +270,9 @@ const App = () => {
       </div>
 
       {/* Tree Visualization */}
-      <div style={{ 
-        flex: 1, 
-        position: 'relative', 
+      <div style={{
+        flex: 1,
+        position: 'relative',
         overflow: 'hidden',
         marginLeft: isMobile ? 0 : 0,
         width: isMobile ? '100%' : 'auto',
