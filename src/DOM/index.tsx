@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from "react";
 import { DefaultNodeElement } from "../Components/DefaultNodeElement";
 import { VirtualizedTreeProps, NodeData } from "../types";
 import { flattenTree, getChildrenIds } from "../utils";
@@ -197,11 +197,28 @@ export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>) {
   const largestListWidth = maxNodesCount * TOTAL_ITEM_WIDTH;
   const largestLevelMid = largestListWidth / 2;
 
+  const prevLargestLevelMidRef = useRef<number>(largestLevelMid);
+
+  useLayoutEffect(() => {
+    if (scrollContainerRef.current) {
+      const diff = largestLevelMid - prevLargestLevelMidRef.current;
+      if (diff !== 0) {
+        scrollContainerRef.current.scrollLeft += diff;
+        setScrollLeft(scrollContainerRef.current.scrollLeft);
+      }
+    }
+    prevLargestLevelMidRef.current = largestLevelMid;
+  }, [largestLevelMid]);
+
   const handleNodeClick = useCallback((node: NodeData<any>, levelIndex: number) => {
     setLevelsData((prev) => {
-      const newLevels = prev.slice(0, levelIndex + 1);
       const childrenIds = getChildrenIds(treeData[node.id]);
-      if (childrenIds && childrenIds.length > 0) {
+      const nextLevel = prev[levelIndex + 1];
+      const isAlreadyExpanded = nextLevel && nextLevel.length === childrenIds.length && nextLevel[0] === childrenIds[0];
+
+      const newLevels = prev.slice(0, levelIndex + 1);
+      
+      if (!isAlreadyExpanded && childrenIds && childrenIds.length > 0) {
         newLevels.push(childrenIds);
       }
       return newLevels;
