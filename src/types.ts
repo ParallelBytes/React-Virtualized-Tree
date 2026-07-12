@@ -22,6 +22,7 @@ export interface VirtualizedTreeProps<T> {
   verticalMargin?: number;
   nodeWidth?: number;
   nodeHeight?: number;
+  extraItems?: number;
 }
 
 export interface StagePosition {
