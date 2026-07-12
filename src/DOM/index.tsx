@@ -3,7 +3,7 @@ import { DefaultNodeElement } from "../Components/DefaultNodeElement";
 import { VirtualizedTreeProps, NodeData } from "../types";
 
 const ITEM_WIDTH = 100;
-const CONTAINER_WIDTH = 800;
+const CONTAINER_WIDTH = typeof window !== 'undefined' ? window.innerWidth : 1920;
 const EXTRA_ITEMS = 5;
 const MARGIN_RIGHT = 50;
 
@@ -107,6 +107,9 @@ export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>) {
   const [levels, setLevels] = useState<number[]>([1]);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStart = useRef({ x: 0, y: 0, scrollLeft: 0, scrollTop: 0, moved: false });
+
   const NodeElement = props.NodeElement || DefaultNodeElement;
 
   const scrollToTheCenter = () => {
@@ -114,6 +117,7 @@ export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>) {
     if (node) {
       node.scrollTo({
         left: (node.scrollWidth - node.clientWidth) / 2,
+        top: (node.scrollHeight - node.clientHeight) / 2,
         behavior: "smooth",
       });
     }
@@ -134,6 +138,42 @@ export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>) {
     scrollToTheCenter();
   }, []);
 
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!scrollContainerRef.current) return;
+    setIsDragging(true);
+    dragStart.current = {
+      x: e.clientX,
+      y: e.clientY,
+      scrollLeft: scrollContainerRef.current.scrollLeft,
+      scrollTop: scrollContainerRef.current.scrollTop,
+      moved: false,
+    };
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging || !scrollContainerRef.current) return;
+    const dx = e.clientX - dragStart.current.x;
+    const dy = e.clientY - dragStart.current.y;
+    
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+      dragStart.current.moved = true;
+    }
+
+    scrollContainerRef.current.scrollLeft = dragStart.current.scrollLeft - dx;
+    scrollContainerRef.current.scrollTop = dragStart.current.scrollTop - dy;
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleCaptureClick = (e: React.MouseEvent) => {
+    if (dragStart.current.moved) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+  };
+
   const largestList = levels[levels.length - 1];
   const largestListWidth = largestList * TOTAL_ITEM_WIDTH;
   const largestLevelMid = largestListWidth / 2;
@@ -148,13 +188,18 @@ export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>) {
   return (
     <div
       ref={scrollContainerRef}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
+      onClickCapture={handleCaptureClick}
       style={{
-        overflowX: "auto",
+        overflow: "auto",
         whiteSpace: "nowrap",
-        padding: 50,
         height: 1000,
-        overflowY: "auto",
         position: "relative",
+        cursor: isDragging ? "grabbing" : "grab",
+        userSelect: "none",
       }}
     >
       <button
@@ -171,35 +216,43 @@ export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>) {
       </button>
       <div
         style={{
-          width: largestListWidth,
-          position: "absolute",
-          top: "50%",
-          transform: "translateY(-50%)",
+          width: largestListWidth + 2000,
+          height: levels.length * 120 + 2000,
+          position: "relative",
         }}
       >
-        {levels.map((numberOfNodes, index) => {
-          const levelMid = (numberOfNodes * TOTAL_ITEM_WIDTH) / 2;
-          const scrollXValue = largestLevelMid - levelMid;
+        <div
+          style={{
+            width: largestListWidth,
+            position: "absolute",
+            top: 1000,
+            left: 1000,
+          }}
+        >
+          {levels.map((numberOfNodes, index) => {
+            const levelMid = (numberOfNodes * TOTAL_ITEM_WIDTH) / 2;
+            const scrollXValue = largestLevelMid - levelMid;
 
-          return (
-            <div
-              key={index}
-              style={{
-                width: largestListWidth,
-                height: 120,
-              }}
-            >
-              <HorizontalList
-                scrollLeft={scrollLeft}
-                numberOfNodes={numberOfNodes}
-                scrollXValue={scrollXValue}
-                NodeElement={NodeElement}
-                level={index}
-                onNodeClick={handleNodeClick}
-              />
-            </div>
-          );
-        })}
+            return (
+              <div
+                key={index}
+                style={{
+                  width: largestListWidth,
+                  height: 120,
+                }}
+              >
+                <HorizontalList
+                  scrollLeft={scrollLeft - 1000}
+                  numberOfNodes={numberOfNodes}
+                  scrollXValue={scrollXValue}
+                  NodeElement={NodeElement}
+                  level={index}
+                  onNodeClick={handleNodeClick}
+                />
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
