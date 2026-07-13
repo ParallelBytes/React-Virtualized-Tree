@@ -33,6 +33,8 @@ const HorizontalList = React.memo(function HorizontalList({
   extraItems,
   verticalMargin,
   nodeHeight,
+  parentX,
+  nodeCenterX,
 }: {
   scrollLeft: number;
   nodes: number[];
@@ -46,6 +48,8 @@ const HorizontalList = React.memo(function HorizontalList({
   extraItems: number;
   verticalMargin: number;
   nodeHeight: number;
+  parentX?: number;
+  nodeCenterX: number;
 }) {
   const TOTAL_ITEM_WIDTH = nodeWidth + horizontalMargin;
   const CONTAINER_WIDTH = typeof window !== 'undefined' ? window.innerWidth : 1920;
@@ -68,6 +72,7 @@ const HorizontalList = React.memo(function HorizontalList({
   }
 
   const items = [];
+  const lines = [];
   for (let i = 0; i < renderedNodesCount; i++) {
     const index = i + newStartIndex;
     const nodeId = nodes[index];
@@ -84,6 +89,28 @@ const HorizontalList = React.memo(function HorizontalList({
           horizontalMargin={horizontalMargin}
         />
       );
+
+      if (parentX !== undefined) {
+        const currentOffset = scrollXValue + newStartIndex * TOTAL_ITEM_WIDTH;
+        const localChildX = (index - newStartIndex) * TOTAL_ITEM_WIDTH + nodeCenterX;
+        const localParentX = parentX - currentOffset;
+
+        const startY = 0;
+        const endY = verticalMargin;
+        const halfY = verticalMargin / 2;
+
+        const d = `M ${localChildX} ${endY} L ${localChildX} ${halfY} L ${localParentX} ${halfY} L ${localParentX} ${startY}`;
+
+        lines.push(
+          <path
+            key={`line-${nodeId}`}
+            d={d}
+            stroke="#666"
+            strokeWidth={2}
+            fill="none"
+          />
+        );
+      }
     }
   }
 
@@ -96,11 +123,27 @@ const HorizontalList = React.memo(function HorizontalList({
     >
       <div
         style={{
-          transform: `translateX(${scrollXValue + newStartIndex * TOTAL_ITEM_WIDTH
-            }px)`,
+          transform: `translateX(${scrollXValue + newStartIndex * TOTAL_ITEM_WIDTH}px)`,
           willChange: "transform",
+          position: "relative",
+          height: "100%",
         }}
       >
+        {parentX !== undefined && lines.length > 0 && (
+          <svg
+            style={{
+              position: "absolute",
+              top: -verticalMargin,
+              left: 0,
+              width: 1,
+              height: verticalMargin,
+              overflow: "visible",
+              pointerEvents: "none",
+            }}
+          >
+            {lines}
+          </svg>
+        )}
         {items}
       </div>
     </div>
@@ -109,11 +152,12 @@ const HorizontalList = React.memo(function HorizontalList({
 
 export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>) {
   const {
-    nodeWidth = 100,
-    nodeHeight = 100,
-    horizontalMargin = 50,
-    verticalMargin = 20,
+    nodeWidth = 120,
+    nodeHeight = 40,
+    horizontalMargin = 70,
+    verticalMargin = 100,
     extraItems = 5,
+    nodeCenterX = 20,
   } = props;
 
   const TOTAL_ITEM_WIDTH = nodeWidth + horizontalMargin;
@@ -124,6 +168,7 @@ export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>) {
   const [levelsData, setLevelsData] = useState<number[][]>(
     props.data ? [[props.data.id]] : []
   );
+  const [expandedNodes, setExpandedNodes] = useState<Record<number, number>>({});
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const [isDragging, setIsDragging] = useState(false);
@@ -223,6 +268,21 @@ export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>) {
       }
       return newLevels;
     });
+
+    setExpandedNodes(prev => {
+      const isAlreadyExpanded = prev[levelIndex] === node.id;
+      const newExpanded = { ...prev };
+      Object.keys(newExpanded).forEach(key => {
+        if (Number(key) >= levelIndex) {
+          delete newExpanded[Number(key)];
+        }
+      });
+      if (!isAlreadyExpanded) {
+        newExpanded[levelIndex] = node.id;
+      }
+      return newExpanded;
+    });
+
     if (props.onNodeClick) {
       props.onNodeClick(node);
     }
@@ -277,6 +337,21 @@ export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>) {
             const levelMid = (numberOfNodes * TOTAL_ITEM_WIDTH) / 2;
             const scrollXValue = largestLevelMid - levelMid;
 
+            let parentX: number | undefined;
+            if (index > 0) {
+              const parentId = expandedNodes[index - 1];
+              if (parentId !== undefined) {
+                const parentLevelNodes = levelsData[index - 1];
+                const parentIndex = parentLevelNodes.indexOf(parentId);
+                if (parentIndex !== -1) {
+                  const parentNumberOfNodes = parentLevelNodes.length;
+                  const parentLevelMid = (parentNumberOfNodes * TOTAL_ITEM_WIDTH) / 2;
+                  const parentScrollXValue = largestLevelMid - parentLevelMid;
+                  parentX = parentScrollXValue + parentIndex * TOTAL_ITEM_WIDTH + nodeCenterX;
+                }
+              }
+            }
+
             return (
               <div
                 key={index}
@@ -290,6 +365,7 @@ export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>) {
                   nodes={levelNodes}
                   treeData={treeData}
                   scrollXValue={scrollXValue}
+                  parentX={parentX}
                   NodeElement={NodeElement}
                   level={index}
                   onNodeClick={handleNodeClick}
@@ -298,6 +374,7 @@ export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>) {
                   horizontalMargin={horizontalMargin}
                   verticalMargin={verticalMargin}
                   extraItems={extraItems}
+                  nodeCenterX={nodeCenterX}
                 />
               </div>
             );
