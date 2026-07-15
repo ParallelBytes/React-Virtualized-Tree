@@ -260,12 +260,34 @@ export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>) {
     if (scrollContainerRef.current) {
       const diff = largestLevelMid - prevLargestLevelMidRef.current;
       if (diff !== 0) {
-        scrollContainerRef.current.scrollLeft += diff;
+        scrollContainerRef.current.scrollLeft += diff * zoom;
         setScrollLeft(scrollContainerRef.current.scrollLeft);
       }
     }
     prevLargestLevelMidRef.current = largestLevelMid;
-  }, [largestLevelMid]);
+  }, [largestLevelMid, zoom]);
+
+  const prevZoomRef = useRef(zoom);
+
+  useLayoutEffect(() => {
+    if (scrollContainerRef.current && prevZoomRef.current !== zoom) {
+      const container = scrollContainerRef.current;
+      const oldZoom = prevZoomRef.current;
+      const halfClientWidth = container.clientWidth/2;
+      const halfClientHeight = container.clientHeight/2;
+
+      // Find the unscaled coordinate of the exact center of the current viewport
+      const previousZoomCenterX = (container.scrollLeft + halfClientWidth) / oldZoom;
+      const previousZoomCenterY = (container.scrollTop + halfClientHeight) / oldZoom;
+
+      // Re-center the viewport onto that exact unscaled coordinate using the new zoom
+      container.scrollLeft = previousZoomCenterX * zoom - halfClientWidth;
+      container.scrollTop = previousZoomCenterY * zoom - halfClientHeight;
+
+      setScrollLeft(container.scrollLeft);
+      prevZoomRef.current = zoom;
+    }
+  }, [zoom]);
 
   const handleNodeClick = useCallback((node: NodeData<any>, levelIndex: number) => {
     setLevelsData((prev) => {
