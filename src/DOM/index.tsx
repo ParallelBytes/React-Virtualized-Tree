@@ -154,8 +154,8 @@ export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>) {
   const {
     nodeWidth = 120,
     nodeHeight = 40,
-    horizontalMargin = 70,
-    verticalMargin = 100,
+    horizontalMargin = 150,
+    verticalMargin = 60,
     extraItems = 5,
     nodeCenterX = 20,
   } = props;
@@ -288,6 +288,42 @@ export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>) {
     }
   }, [treeData, props.onNodeClick]);
 
+  const levelPositions = useMemo(() => {
+    const positions: { scrollXValue: number; parentX?: number }[] = [];
+    for (let index = 0; index < levelsData.length; index++) {
+      const levelNodes = levelsData[index];
+      const numberOfNodes = levelNodes.length;
+
+      let parentX: number | undefined;
+      let scrollXValue: number;
+
+      if (index === 0) {
+        // Center root perfectly at largestLevelMid
+        scrollXValue = largestLevelMid - ((numberOfNodes - 1) / 2) * TOTAL_ITEM_WIDTH - nodeCenterX;
+      } else {
+        const parentId = expandedNodes[index - 1];
+        if (parentId !== undefined) {
+          const parentLevelNodes = levelsData[index - 1];
+          const parentIndex = parentLevelNodes.indexOf(parentId);
+          if (parentIndex !== -1) {
+            const parentScrollXValue = positions[index - 1].scrollXValue;
+            parentX = parentScrollXValue + parentIndex * TOTAL_ITEM_WIDTH + nodeCenterX;
+          }
+        }
+        
+        if (parentX !== undefined) {
+          // Center this level's anchors perfectly around the parent anchor
+          scrollXValue = parentX - ((numberOfNodes - 1) / 2) * TOTAL_ITEM_WIDTH - nodeCenterX;
+        } else {
+          // Fallback
+          scrollXValue = largestLevelMid - ((numberOfNodes - 1) / 2) * TOTAL_ITEM_WIDTH - nodeCenterX;
+        }
+      }
+      positions.push({ scrollXValue, parentX });
+    }
+    return positions;
+  }, [levelsData, expandedNodes, TOTAL_ITEM_WIDTH, largestLevelMid, nodeCenterX]);
+
   return (
     <div
       ref={scrollContainerRef}
@@ -333,24 +369,7 @@ export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>) {
           }}
         >
           {levelsData.map((levelNodes, index) => {
-            const numberOfNodes = levelNodes.length;
-            const levelMid = (numberOfNodes * TOTAL_ITEM_WIDTH) / 2;
-            const scrollXValue = largestLevelMid - levelMid;
-
-            let parentX: number | undefined;
-            if (index > 0) {
-              const parentId = expandedNodes[index - 1];
-              if (parentId !== undefined) {
-                const parentLevelNodes = levelsData[index - 1];
-                const parentIndex = parentLevelNodes.indexOf(parentId);
-                if (parentIndex !== -1) {
-                  const parentNumberOfNodes = parentLevelNodes.length;
-                  const parentLevelMid = (parentNumberOfNodes * TOTAL_ITEM_WIDTH) / 2;
-                  const parentScrollXValue = largestLevelMid - parentLevelMid;
-                  parentX = parentScrollXValue + parentIndex * TOTAL_ITEM_WIDTH + nodeCenterX;
-                }
-              }
-            }
+            const { scrollXValue, parentX } = levelPositions[index];
 
             return (
               <div
