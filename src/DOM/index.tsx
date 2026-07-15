@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from "react";
 import { DefaultNodeElement } from "../Components/DefaultNodeElement";
+import { ZoomControls } from "../Components/ZoomControls";
 import { VirtualizedTreeProps, NodeData } from "../types";
 import { flattenTree, getChildrenIds } from "../utils";
 
@@ -35,6 +36,7 @@ const HorizontalList = React.memo(function HorizontalList({
   nodeHeight,
   parentX,
   nodeCenterX,
+  zoom = 1,
 }: {
   scrollLeft: number;
   nodes: number[];
@@ -50,9 +52,10 @@ const HorizontalList = React.memo(function HorizontalList({
   nodeHeight: number;
   parentX?: number;
   nodeCenterX: number;
+  zoom?: number;
 }) {
   const TOTAL_ITEM_WIDTH = nodeWidth + horizontalMargin;
-  const CONTAINER_WIDTH = typeof window !== 'undefined' ? window.innerWidth : 1920;
+  const CONTAINER_WIDTH = (typeof window !== 'undefined' ? window.innerWidth : 1920) / zoom;
   
   const numberOfNodes = nodes.length;
   const startIndex = Math.floor((scrollLeft - scrollXValue) / TOTAL_ITEM_WIDTH);
@@ -154,8 +157,8 @@ export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>) {
   const {
     nodeWidth = 120,
     nodeHeight = 40,
-    horizontalMargin = 70,
-    verticalMargin = 100,
+    horizontalMargin = 150,
+    verticalMargin = 60,
     extraItems = 5,
     nodeCenterX = 20,
   } = props;
@@ -169,6 +172,15 @@ export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>) {
     props.data ? [[props.data.id]] : []
   );
   const [expandedNodes, setExpandedNodes] = useState<Record<number, number>>({});
+  const [zoom, setZoom] = useState(1);
+
+  const handleZoomIn = useCallback(() => {
+    setZoom((z) => Math.min(z + 0.2, 2));
+  }, []);
+
+  const handleZoomOut = useCallback(() => {
+    setZoom((z) => Math.max(z - 0.2, 0.2));
+  }, []);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const [isDragging, setIsDragging] = useState(false);
@@ -288,69 +300,96 @@ export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>) {
     }
   }, [treeData, props.onNodeClick]);
 
+  const levelPositions = useMemo(() => {
+    const positions: { scrollXValue: number; parentX?: number }[] = [];
+    for (let index = 0; index < levelsData.length; index++) {
+      const levelNodes = levelsData[index];
+      const numberOfNodes = levelNodes.length;
+
+      let parentX: number | undefined;
+      let scrollXValue: number;
+
+      if (index === 0) {
+        // Center root perfectly at largestLevelMid
+        scrollXValue = largestLevelMid - ((numberOfNodes - 1) / 2) * TOTAL_ITEM_WIDTH - nodeCenterX;
+      } else {
+        const parentId = expandedNodes[index - 1];
+        if (parentId !== undefined) {
+          const parentLevelNodes = levelsData[index - 1];
+          const parentIndex = parentLevelNodes.indexOf(parentId);
+          if (parentIndex !== -1) {
+            const parentScrollXValue = positions[index - 1].scrollXValue;
+            parentX = parentScrollXValue + parentIndex * TOTAL_ITEM_WIDTH + nodeCenterX;
+          }
+        }
+        
+        if (parentX !== undefined) {
+          // Center this level's anchors perfectly around the parent anchor
+          scrollXValue = parentX - ((numberOfNodes - 1) / 2) * TOTAL_ITEM_WIDTH - nodeCenterX;
+        } else {
+          // Fallback
+          scrollXValue = largestLevelMid - ((numberOfNodes - 1) / 2) * TOTAL_ITEM_WIDTH - nodeCenterX;
+        }
+      }
+      positions.push({ scrollXValue, parentX });
+    }
+    return positions;
+  }, [levelsData, expandedNodes, TOTAL_ITEM_WIDTH, largestLevelMid, nodeCenterX]);
+
   return (
-    <div
-      ref={scrollContainerRef}
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
-      onClickCapture={handleCaptureClick}
-      style={{
-        overflow: "auto",
-        whiteSpace: "nowrap",
-        height: 1000,
-        position: "relative",
-        cursor: isDragging ? "grabbing" : "grab",
-        userSelect: "none",
-      }}
-    >
-      <button
+    <div style={{ position: "relative", width: "100%", height: 1000 }}>
+      <ZoomControls
+        handleZoomIn={handleZoomIn}
+        handleZoomOut={handleZoomOut}
+        handleShiftToCenter={scrollToTheCenter}
+        disableZoomIn={zoom >= 2}
+        disableZoomOut={zoom <= 0.2}
+      />
+      <div
+        ref={scrollContainerRef}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        onClickCapture={handleCaptureClick}
         style={{
-          position: "fixed",
-          top: 10,
-          right: 10,
-          zIndex: 10,
-          padding: "8px 16px",
+          overflow: "auto",
+          whiteSpace: "nowrap",
+          width: "100%",
+          height: "100%",
+          position: "relative",
+          cursor: isDragging ? "grabbing" : "grab",
+          userSelect: "none",
         }}
-        onClick={() => scrollToTheCenter()}
       >
-        Center
-      </button>
       <div
         style={{
-          width: largestListWidth + 2000,
-          height: levelsData.length * (nodeHeight + verticalMargin) + 2000,
+          width: (largestListWidth + 2000) * zoom,
+          height: (levelsData.length * (nodeHeight + verticalMargin) + 2000) * zoom,
           position: "relative",
         }}
       >
         <div
           style={{
-            width: largestListWidth,
+            transform: `scale(${zoom})`,
+            transformOrigin: "0 0",
             position: "absolute",
-            top: 1000,
-            left: 1000,
+            top: 0,
+            left: 0,
+            width: largestListWidth + 2000,
+            height: levelsData.length * (nodeHeight + verticalMargin) + 2000,
           }}
         >
+          <div
+            style={{
+              width: largestListWidth,
+              position: "absolute",
+              top: 1000,
+              left: 1000,
+            }}
+          >
           {levelsData.map((levelNodes, index) => {
-            const numberOfNodes = levelNodes.length;
-            const levelMid = (numberOfNodes * TOTAL_ITEM_WIDTH) / 2;
-            const scrollXValue = largestLevelMid - levelMid;
-
-            let parentX: number | undefined;
-            if (index > 0) {
-              const parentId = expandedNodes[index - 1];
-              if (parentId !== undefined) {
-                const parentLevelNodes = levelsData[index - 1];
-                const parentIndex = parentLevelNodes.indexOf(parentId);
-                if (parentIndex !== -1) {
-                  const parentNumberOfNodes = parentLevelNodes.length;
-                  const parentLevelMid = (parentNumberOfNodes * TOTAL_ITEM_WIDTH) / 2;
-                  const parentScrollXValue = largestLevelMid - parentLevelMid;
-                  parentX = parentScrollXValue + parentIndex * TOTAL_ITEM_WIDTH + nodeCenterX;
-                }
-              }
-            }
+            const { scrollXValue, parentX } = levelPositions[index];
 
             return (
               <div
@@ -361,7 +400,7 @@ export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>) {
                 }}
               >
                 <HorizontalList
-                  scrollLeft={scrollLeft - 1000}
+                  scrollLeft={scrollLeft / zoom - 1000}
                   nodes={levelNodes}
                   treeData={treeData}
                   scrollXValue={scrollXValue}
@@ -375,12 +414,15 @@ export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>) {
                   verticalMargin={verticalMargin}
                   extraItems={extraItems}
                   nodeCenterX={nodeCenterX}
+                  zoom={zoom}
                 />
               </div>
             );
           })}
         </div>
+        </div>
       </div>
+    </div>
     </div>
   );
 }
