@@ -54,7 +54,7 @@ const HorizontalList = React.memo(function HorizontalList({
   nodeCenterX: number;
   zoom?: number;
 }) {
-  const TOTAL_ITEM_WIDTH = nodeWidth + horizontalMargin;
+  const TOTAL_ITEM_WIDTH = horizontalMargin;
   const CONTAINER_WIDTH = (typeof window !== 'undefined' ? window.innerWidth : 1920) / zoom;
   
   const numberOfNodes = nodes.length;
@@ -89,7 +89,7 @@ const HorizontalList = React.memo(function HorizontalList({
           NodeElement={NodeElement}
           onClick={(node) => onNodeClick && onNodeClick(node, level)}
           nodeWidth={nodeWidth}
-          horizontalMargin={horizontalMargin}
+          horizontalMargin={horizontalMargin - nodeWidth}
         />
       );
 
@@ -100,7 +100,7 @@ const HorizontalList = React.memo(function HorizontalList({
 
         const startY = 0;
         const endY = verticalMargin;
-        const halfY = verticalMargin / 2;
+        const halfY = verticalMargin - 20;
 
         const d = `M ${localChildX} ${endY} L ${localChildX} ${halfY} L ${localParentX} ${halfY} L ${localParentX} ${startY}`;
 
@@ -111,6 +111,7 @@ const HorizontalList = React.memo(function HorizontalList({
             stroke="#666"
             strokeWidth={2}
             fill="none"
+            shapeRendering="crispEdges"
           />
         );
       }
@@ -155,15 +156,15 @@ const HorizontalList = React.memo(function HorizontalList({
 
 export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>) {
   const {
-    nodeWidth = 120,
+    nodeWidth = 40,
     nodeHeight = 40,
     horizontalMargin = 150,
-    verticalMargin = 60,
+    verticalMargin = 50,
     extraItems = 5,
     nodeCenterX = 20,
   } = props;
 
-  const TOTAL_ITEM_WIDTH = nodeWidth + horizontalMargin;
+  const TOTAL_ITEM_WIDTH = horizontalMargin;
 
   const treeData = useMemo(() => flattenTree(props.data), [props.data]);
 

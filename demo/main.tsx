@@ -1,7 +1,8 @@
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import { VirtualizedTree } from '../src/Canvas';
-import { NodeData } from '../src/types';
+import React from "react";
+import ReactDOM from "react-dom/client";
+import { VirtualizedTree as DOMTree } from "../src/DOM";
+import { VirtualizedTree as CanvasTree } from "../src/Canvas";
+import { NodeData } from "../src/types";
 
 function generateStaticTreeData(): NodeData<{ label: string }> {
   let idCounter = 0;
@@ -15,47 +16,40 @@ function generateStaticTreeData(): NodeData<{ label: string }> {
     index: 0,
     hasChildren: true,
     isExpanded: true,
-    nodeInfo: { label: 'Root' },
+    nodeInfo: { label: "Root" },
     children: [],
   };
 
-  // Level 3: 10,000 nodes (shared children for all Level 2 nodes)
-  const level3Nodes = Array.from({ length: 10000 }, (_, i) => ({
-    id: idCounter++,
-    x: 0,
-    y: 0,
-    level: 2,
-    index: i,
-    hasChildren: false,
-    isExpanded: false,
-    nodeInfo: { label: `L3-${i + 1}` },
-    children: [],
-  }));
+  let nextLevelNodes: NodeData<{ label: string }>[] = [];
 
-  // Level 2: 10,000 nodes (each references the same level3Nodes array)
-  const level2Nodes = Array.from({ length: 10000 }, (_, i) => ({
-    id: idCounter++,
-    x: 0,
-    y: 0,
-    level: 1,
-    index: i,
-    hasChildren: true,
-    isExpanded: false,
-    nodeInfo: { label: `L2-${i + 1}` },
-    children: level3Nodes,
-  }));
+  // Generate levels 10 down to 2 (9 levels of 10,000 nodes)
+  for (let l = 9; l >= 1; l--) {
+    const currentLevelNodes = Array.from({ length: 10000 }, (_, i) => ({
+      id: idCounter++,
+      x: 0,
+      y: 0,
+      level: l,
+      index: i,
+      hasChildren: nextLevelNodes.length > 0,
+      isExpanded: false,
+      nodeInfo: { label: `L${l + 1}-${i + 1}` },
+      children: nextLevelNodes,
+    }));
+    nextLevelNodes = currentLevelNodes;
+  }
 
-  root.children = level2Nodes;
+  root.children = nextLevelNodes;
 
   return root;
 }
 
 const App = () => {
   const treeData = React.useMemo(() => generateStaticTreeData(), []);
-  const actualNodesCreated = 20001;
-  const virtualTotalNodes = 100010001;
+  const actualNodesCreated = 90001;
+  const virtualTotalNodes = "> 10^36";
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
   const [isMobile, setIsMobile] = React.useState(window.innerWidth < 768);
+  const [renderMode, setRenderMode] = React.useState<"DOM" | "Canvas">("DOM");
 
   React.useEffect(() => {
     const handleResize = () => {
@@ -66,61 +60,79 @@ const App = () => {
       }
     };
 
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   return (
-    <div style={{ width: '100vw', height: '100vh', display: 'flex', flexDirection: 'row', position: 'relative' }}>
+    <div
+      style={{
+        width: "100vw",
+        height: "100vh",
+        display: "flex",
+        flexDirection: "row",
+        position: "relative",
+      }}
+    >
       {/* Hamburger Menu Button (Mobile Only) */}
       {isMobile && (
         <button
           onClick={() => setIsSidebarOpen(!isSidebarOpen)}
           style={{
-            position: 'fixed',
-            top: '16px',
-            left: '16px',
+            position: "fixed",
+            top: "16px",
+            left: "16px",
             zIndex: 2000,
-            width: '44px',
-            height: '44px',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '5px',
-            background: '#ffffff',
-            border: '1px solid #e0e0e0',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+            width: "44px",
+            height: "44px",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "5px",
+            background: "#ffffff",
+            border: "1px solid #e0e0e0",
+            borderRadius: "8px",
+            cursor: "pointer",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
             padding: 0,
-            display: isSidebarOpen ? "none" : "flex"
+            display: isSidebarOpen ? "none" : "flex",
           }}
           aria-label="Toggle menu"
         >
-          <span style={{
-            width: '20px',
-            height: '2px',
-            background: '#2c3e50',
-            borderRadius: '2px',
-            transition: 'all 0.3s ease',
-            transform: isSidebarOpen ? 'rotate(45deg) translateY(7px)' : 'none',
-          }} />
-          <span style={{
-            width: '20px',
-            height: '2px',
-            background: '#2c3e50',
-            borderRadius: '2px',
-            transition: 'all 0.3s ease',
-            opacity: isSidebarOpen ? 0 : 1,
-          }} />
-          <span style={{
-            width: '20px',
-            height: '2px',
-            background: '#2c3e50',
-            borderRadius: '2px',
-            transition: 'all 0.3s ease',
-            transform: isSidebarOpen ? 'rotate(-45deg) translateY(-7px)' : 'none',
-          }} />
+          <span
+            style={{
+              width: "20px",
+              height: "2px",
+              background: "#2c3e50",
+              borderRadius: "2px",
+              transition: "all 0.3s ease",
+              transform: isSidebarOpen
+                ? "rotate(45deg) translateY(7px)"
+                : "none",
+            }}
+          />
+          <span
+            style={{
+              width: "20px",
+              height: "2px",
+              background: "#2c3e50",
+              borderRadius: "2px",
+              transition: "all 0.3s ease",
+              opacity: isSidebarOpen ? 0 : 1,
+            }}
+          />
+          <span
+            style={{
+              width: "20px",
+              height: "2px",
+              background: "#2c3e50",
+              borderRadius: "2px",
+              transition: "all 0.3s ease",
+              transform: isSidebarOpen
+                ? "rotate(-45deg) translateY(-7px)"
+                : "none",
+            }}
+          />
         </button>
       )}
 
@@ -129,54 +141,57 @@ const App = () => {
         <div
           onClick={() => setIsSidebarOpen(false)}
           style={{
-            position: 'fixed',
+            position: "fixed",
             top: 0,
             left: 0,
             right: 0,
             bottom: 0,
-            background: 'rgba(0, 0, 0, 0.5)',
+            background: "rgba(0, 0, 0, 0.5)",
             zIndex: 1500,
           }}
         />
       )}
 
       {/* Sidebar Panel */}
-      <div style={{
-        width: isMobile ? '280px' : '280px',
-        padding: '24px',
-        background: '#f8f9fa',
-        borderRight: '1px solid #e0e0e0',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '32px',
-        color: '#2c3e50',
-        overflowY: 'auto',
-        position: isMobile ? 'fixed' : 'relative',
-        top: 0,
-        left: isMobile ? (isSidebarOpen ? 0 : '-280px') : 0,
-        height: '100vh',
-        zIndex: 1600,
-        transition: 'left 0.3s ease',
-        boxShadow: isMobile && isSidebarOpen ? '2px 0 8px rgba(0,0,0,0.15)' : 'none',
-      }}>
+      <div
+        style={{
+          width: isMobile ? "280px" : "280px",
+          padding: "24px",
+          background: "#f8f9fa",
+          borderRight: "1px solid #e0e0e0",
+          display: "flex",
+          flexDirection: "column",
+          gap: "32px",
+          color: "#2c3e50",
+          overflowY: "auto",
+          position: isMobile ? "fixed" : "relative",
+          top: 0,
+          left: isMobile ? (isSidebarOpen ? 0 : "-280px") : 0,
+          height: "100vh",
+          zIndex: 1600,
+          transition: "left 0.3s ease",
+          boxShadow:
+            isMobile && isSidebarOpen ? "2px 0 8px rgba(0,0,0,0.15)" : "none",
+        }}
+      >
         {/* Close button for mobile */}
         {isMobile && (
           <button
             onClick={() => setIsSidebarOpen(false)}
             style={{
-              position: 'absolute',
-              top: '16px',
-              right: '16px',
-              width: '32px',
-              height: '32px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-              fontSize: '24px',
-              color: '#2c3e50',
+              position: "absolute",
+              top: "16px",
+              right: "16px",
+              width: "32px",
+              height: "32px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
+              fontSize: "24px",
+              color: "#2c3e50",
               padding: 0,
             }}
             aria-label="Close menu"
@@ -185,109 +200,241 @@ const App = () => {
           </button>
         )}
 
-        <h2 style={{
-          margin: 0,
-          fontSize: '22px',
-          fontWeight: '600',
-          letterSpacing: '-0.5px',
-          color: '#2c3e50',
-          paddingRight: isMobile ? '40px' : 0,
-        }}>
+        <h2
+          style={{
+            margin: 0,
+            fontSize: "22px",
+            fontWeight: "600",
+            letterSpacing: "-0.5px",
+            color: "#2c3e50",
+            paddingRight: isMobile ? "40px" : 0,
+          }}
+        >
           React Virtualized Tree
         </h2>
 
         {/* Tree Statistics */}
-        <div style={{
-          padding: '16px',
-          background: '#ffffff',
-          borderRadius: '8px',
-          border: '1px solid #e0e0e0',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '12px',
-        }}>
-          <div style={{
-            fontSize: '13px',
-            fontWeight: '600',
-            color: '#2c3e50',
-            textTransform: 'uppercase',
-            letterSpacing: '0.5px',
-          }}>
+        <div
+          style={{
+            padding: "16px",
+            background: "#ffffff",
+            borderRadius: "8px",
+            border: "1px solid #e0e0e0",
+            display: "flex",
+            flexDirection: "column",
+            gap: "12px",
+          }}
+        >
+          <div
+            style={{
+              fontSize: "13px",
+              fontWeight: "600",
+              color: "#2c3e50",
+              textTransform: "uppercase",
+              letterSpacing: "0.5px",
+            }}
+          >
             Tree Statistics
           </div>
 
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            paddingBottom: '8px',
-            borderBottom: '1px solid #e0e0e0',
-          }}>
-            <span style={{ fontSize: '14px', color: '#6c757d' }}>Nodes Created:</span>
-            <span style={{
-              fontSize: '18px',
-              fontWeight: '700',
-              color: '#2c3e50',
-              fontFamily: 'monospace',
-            }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              paddingBottom: "8px",
+              borderBottom: "1px solid #e0e0e0",
+            }}
+          >
+            <span style={{ fontSize: "14px", color: "#6c757d" }}>
+              Nodes Created:
+            </span>
+            <span
+              style={{
+                fontSize: "18px",
+                fontWeight: "700",
+                color: "#2c3e50",
+                fontFamily: "monospace",
+              }}
+            >
               {actualNodesCreated.toLocaleString()}
             </span>
           </div>
 
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            paddingBottom: '8px',
-            borderBottom: '1px solid #e0e0e0',
-          }}>
-            <span style={{ fontSize: '14px', color: '#6c757d' }}>Virtual Total:</span>
-            <span style={{
-              fontSize: '16px',
-              fontWeight: '600',
-              color: '#6c757d',
-              fontFamily: 'monospace',
-            }}>
-              {virtualTotalNodes.toLocaleString()}
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              paddingBottom: "8px",
+              borderBottom: "1px solid #e0e0e0",
+            }}
+          >
+            <span style={{ fontSize: "14px", color: "#6c757d" }}>
+              Virtual Total:
+            </span>
+            <span
+              style={{
+                fontSize: "16px",
+                fontWeight: "600",
+                color: "#6c757d",
+                fontFamily: "monospace",
+              }}
+            >
+              {virtualTotalNodes}
             </span>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: '13px', color: '#6c757d' }}>Level 1:</span>
-              <span style={{ fontSize: '13px', fontWeight: '600', color: '#2c3e50' }}>1</span>
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span style={{ fontSize: "13px", color: "#6c757d" }}>
+                Level 1:
+              </span>
+              <span
+                style={{
+                  fontSize: "13px",
+                  fontWeight: "600",
+                  color: "#2c3e50",
+                }}
+              >
+                1
+              </span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: '13px', color: '#6c757d' }}>Level 2:</span>
-              <span style={{ fontSize: '13px', fontWeight: '600', color: '#2c3e50' }}>10,000</span>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span style={{ fontSize: "13px", color: "#6c757d" }}>
+                Levels 2-10:
+              </span>
+              <span
+                style={{
+                  fontSize: "13px",
+                  fontWeight: "600",
+                  color: "#2c3e50",
+                }}
+              >
+                10,000 nodes each
+              </span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: '13px', color: '#6c757d' }}>Level 3:</span>
-              <span style={{ fontSize: '13px', fontWeight: '600', color: '#2c3e50' }}>100,000,000</span>
-            </div>
+          </div>
+        </div>
+
+        {/* Render Mode Toggle */}
+        <div
+          style={{
+            padding: "16px",
+            background: "#ffffff",
+            borderRadius: "8px",
+            border: "1px solid #e0e0e0",
+            display: "flex",
+            flexDirection: "column",
+            gap: "12px",
+          }}
+        >
+          <div
+            style={{
+              fontSize: "13px",
+              fontWeight: "600",
+              color: "#2c3e50",
+              textTransform: "uppercase",
+              letterSpacing: "0.5px",
+            }}
+          >
+            Render Mode
+          </div>
+          <div
+            style={{ display: "flex", flexDirection: "column", gap: "12px" }}
+          >
+            <label
+              style={{
+                display: "flex",
+                alignItems: "flex-start",
+                gap: "10px",
+                cursor: "pointer",
+              }}
+            >
+              <input
+                type="radio"
+                name="renderMode"
+                value="DOM"
+                checked={renderMode === "DOM"}
+                onChange={() => setRenderMode("DOM")}
+                style={{ marginTop: "2px", cursor: "pointer" }}
+              />
+              <div
+                style={{
+                  fontSize: "14px",
+                  color: "#2c3e50",
+                  lineHeight: "1.4",
+                }}
+              >
+                <span style={{ fontWeight: "600" }}>DOM</span> — Renders visible
+                nodes as HTML elements.
+              </div>
+            </label>
+            <label
+              style={{
+                display: "flex",
+                alignItems: "flex-start",
+                gap: "10px",
+                cursor: "pointer",
+              }}
+            >
+              <input
+                type="radio"
+                name="renderMode"
+                value="Canvas"
+                checked={renderMode === "Canvas"}
+                onChange={() => setRenderMode("Canvas")}
+                style={{ marginTop: "2px", cursor: "pointer" }}
+              />
+              <div
+                style={{
+                  fontSize: "14px",
+                  color: "#2c3e50",
+                  lineHeight: "1.4",
+                }}
+              >
+                <span style={{ fontWeight: "600" }}>Canvas</span> — Draws
+                everything on a single{" "}
+                <code
+                  style={{
+                    background: "#f1f3f5",
+                    padding: "2px 6px",
+                    borderRadius: "4px",
+                    fontSize: "12px",
+                    border: "1px solid #e0e0e0",
+                  }}
+                >
+                  &lt;canvas&gt;
+                </code>{" "}
+                element.
+              </div>
+            </label>
           </div>
         </div>
       </div>
 
       {/* Tree Visualization */}
-      <div style={{
-        flex: 1,
-        position: 'relative',
-        overflow: 'hidden',
-        marginLeft: isMobile ? 0 : 0,
-        width: isMobile ? '100%' : 'auto',
-      }}>
-        <VirtualizedTree
-          data={treeData}
-          onNodeClick={(node) => console.log('Clicked:', node)}
-        />
+      <div
+        style={{
+          flex: 1,
+          position: "relative",
+          overflow: "hidden",
+          marginLeft: isMobile ? 0 : 0,
+          width: isMobile ? "100%" : "auto",
+        }}
+      >
+        {renderMode === "DOM" ? (
+          <DOMTree data={treeData} />
+        ) : (
+          <CanvasTree data={treeData} />
+        )}
       </div>
     </div>
   );
 };
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
+ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <App />
-  </React.StrictMode>
+  </React.StrictMode>,
 );
