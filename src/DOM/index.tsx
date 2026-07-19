@@ -54,7 +54,7 @@ const HorizontalList = React.memo(function HorizontalList({
   nodeCenterX: number;
   zoom?: number;
 }) {
-  const TOTAL_ITEM_WIDTH = nodeWidth + horizontalMargin;
+  const TOTAL_ITEM_WIDTH = horizontalMargin;
   const CONTAINER_WIDTH = (typeof window !== 'undefined' ? window.innerWidth : 1920) / zoom;
   
   const numberOfNodes = nodes.length;
@@ -89,7 +89,7 @@ const HorizontalList = React.memo(function HorizontalList({
           NodeElement={NodeElement}
           onClick={(node) => onNodeClick && onNodeClick(node, level)}
           nodeWidth={nodeWidth}
-          horizontalMargin={horizontalMargin}
+          horizontalMargin={horizontalMargin - nodeWidth}
         />
       );
 
@@ -100,7 +100,7 @@ const HorizontalList = React.memo(function HorizontalList({
 
         const startY = 0;
         const endY = verticalMargin;
-        const halfY = verticalMargin / 2;
+        const halfY = verticalMargin - 20;
 
         const d = `M ${localChildX} ${endY} L ${localChildX} ${halfY} L ${localParentX} ${halfY} L ${localParentX} ${startY}`;
 
@@ -111,6 +111,7 @@ const HorizontalList = React.memo(function HorizontalList({
             stroke="#666"
             strokeWidth={2}
             fill="none"
+            shapeRendering="crispEdges"
           />
         );
       }
@@ -155,19 +156,20 @@ const HorizontalList = React.memo(function HorizontalList({
 
 export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>) {
   const {
-    nodeWidth = 120,
+    nodeWidth = 40,
     nodeHeight = 40,
     horizontalMargin = 150,
-    verticalMargin = 60,
+    verticalMargin = 50,
     extraItems = 5,
     nodeCenterX = 20,
   } = props;
 
-  const TOTAL_ITEM_WIDTH = nodeWidth + horizontalMargin;
+  const TOTAL_ITEM_WIDTH = horizontalMargin;
 
   const treeData = useMemo(() => flattenTree(props.data), [props.data]);
 
   const [scrollLeft, setScrollLeft] = useState(0);
+  const [scrollTop, setScrollTop] = useState(0);
   const [levelsData, setLevelsData] = useState<number[][]>(
     props.data ? [[props.data.id]] : []
   );
@@ -188,21 +190,23 @@ export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>) {
 
   const NodeElement = props.NodeElement || DefaultNodeElement;
 
-  const scrollToTheCenter = () => {
+  const scrollToTheCenter = useCallback((e?: any) => {
+    const behavior = typeof e === "string" ? e : "smooth";
     const node = scrollContainerRef.current;
     if (node) {
       node.scrollTo({
         left: (node.scrollWidth - node.clientWidth) / 2,
         top: (node.scrollHeight - node.clientHeight) / 2,
-        behavior: "smooth",
+        behavior: behavior as ScrollBehavior,
       });
     }
-  };
+  }, []);
 
   useEffect(() => {
     const handleScroll = () => {
       if (!scrollContainerRef.current) return;
       setScrollLeft(scrollContainerRef.current.scrollLeft);
+      setScrollTop(scrollContainerRef.current.scrollTop);
     };
 
     const container = scrollContainerRef.current;
@@ -211,8 +215,8 @@ export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>) {
   }, []);
 
   useEffect(() => {
-    scrollToTheCenter();
-  }, []);
+    scrollToTheCenter("auto");
+  }, [scrollToTheCenter]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (!scrollContainerRef.current) return;
@@ -285,6 +289,7 @@ export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>) {
       container.scrollTop = previousZoomCenterY * zoom - halfClientHeight;
 
       setScrollLeft(container.scrollLeft);
+      setScrollTop(container.scrollTop);
       prevZoomRef.current = zoom;
     }
   }, [zoom]);
@@ -358,6 +363,16 @@ export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>) {
     return positions;
   }, [levelsData, expandedNodes, TOTAL_ITEM_WIDTH, largestLevelMid, nodeCenterX]);
 
+  const localScrollTop = scrollTop / zoom - 1000;
+  const TOTAL_ITEM_HEIGHT = nodeHeight + verticalMargin;
+  const CONTAINER_HEIGHT = (typeof window !== 'undefined' ? window.innerHeight : 1080) / zoom;
+  
+  const startLevelIndex = Math.max(0, Math.floor(localScrollTop / TOTAL_ITEM_HEIGHT) - extraItems);
+  const endLevelIndex = Math.min(
+    levelsData.length - 1,
+    Math.floor((localScrollTop + CONTAINER_HEIGHT) / TOTAL_ITEM_HEIGHT) + extraItems
+  );
+
   return (
     <div style={{ position: "relative", width: "100%", height: 1000 }}>
       <ZoomControls
@@ -411,6 +426,10 @@ export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>) {
             }}
           >
           {levelsData.map((levelNodes, index) => {
+            if (index < startLevelIndex || index > endLevelIndex) {
+              return null;
+            }
+
             const { scrollXValue, parentX } = levelPositions[index];
 
             return (
@@ -418,7 +437,9 @@ export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>) {
                 key={index}
                 style={{
                   width: largestListWidth,
-                  height: nodeHeight + verticalMargin,
+                  height: TOTAL_ITEM_HEIGHT,
+                  position: "absolute",
+                  top: index * TOTAL_ITEM_HEIGHT,
                 }}
               >
                 <HorizontalList

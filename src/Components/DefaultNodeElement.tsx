@@ -21,6 +21,7 @@ const styles = {
     fontSize: '12px',
     boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
     boxSizing: 'border-box',
+    flexShrink: "0"
   } as React.CSSProperties,
   label: {
     fontSize: '14px',
