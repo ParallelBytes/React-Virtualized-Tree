@@ -168,6 +168,7 @@ export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>) {
   const treeData = useMemo(() => flattenTree(props.data), [props.data]);
 
   const [scrollLeft, setScrollLeft] = useState(0);
+  const [scrollTop, setScrollTop] = useState(0);
   const [levelsData, setLevelsData] = useState<number[][]>(
     props.data ? [[props.data.id]] : []
   );
@@ -188,21 +189,23 @@ export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>) {
 
   const NodeElement = props.NodeElement || DefaultNodeElement;
 
-  const scrollToTheCenter = () => {
+  const scrollToTheCenter = useCallback((e?: any) => {
+    const behavior = typeof e === "string" ? e : "smooth";
     const node = scrollContainerRef.current;
     if (node) {
       node.scrollTo({
         left: (node.scrollWidth - node.clientWidth) / 2,
         top: (node.scrollHeight - node.clientHeight) / 2,
-        behavior: "smooth",
+        behavior: behavior as ScrollBehavior,
       });
     }
-  };
+  }, []);
 
   useEffect(() => {
     const handleScroll = () => {
       if (!scrollContainerRef.current) return;
       setScrollLeft(scrollContainerRef.current.scrollLeft);
+      setScrollTop(scrollContainerRef.current.scrollTop);
     };
 
     const container = scrollContainerRef.current;
@@ -211,8 +214,8 @@ export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>) {
   }, []);
 
   useEffect(() => {
-    scrollToTheCenter();
-  }, []);
+    scrollToTheCenter("auto");
+  }, [scrollToTheCenter]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (!scrollContainerRef.current) return;
@@ -285,6 +288,7 @@ export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>) {
       container.scrollTop = previousZoomCenterY * zoom - halfClientHeight;
 
       setScrollLeft(container.scrollLeft);
+      setScrollTop(container.scrollTop);
       prevZoomRef.current = zoom;
     }
   }, [zoom]);
@@ -358,6 +362,16 @@ export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>) {
     return positions;
   }, [levelsData, expandedNodes, TOTAL_ITEM_WIDTH, largestLevelMid, nodeCenterX]);
 
+  const localScrollTop = scrollTop / zoom - 1000;
+  const TOTAL_ITEM_HEIGHT = nodeHeight + verticalMargin;
+  const CONTAINER_HEIGHT = (typeof window !== 'undefined' ? window.innerHeight : 1080) / zoom;
+  
+  const startLevelIndex = Math.max(0, Math.floor(localScrollTop / TOTAL_ITEM_HEIGHT) - extraItems);
+  const endLevelIndex = Math.min(
+    levelsData.length - 1,
+    Math.floor((localScrollTop + CONTAINER_HEIGHT) / TOTAL_ITEM_HEIGHT) + extraItems
+  );
+
   return (
     <div style={{ position: "relative", width: "100%", height: 1000 }}>
       <ZoomControls
@@ -411,6 +425,10 @@ export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>) {
             }}
           >
           {levelsData.map((levelNodes, index) => {
+            if (index < startLevelIndex || index > endLevelIndex) {
+              return null;
+            }
+
             const { scrollXValue, parentX } = levelPositions[index];
 
             return (
@@ -418,7 +436,9 @@ export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>) {
                 key={index}
                 style={{
                   width: largestListWidth,
-                  height: nodeHeight + verticalMargin,
+                  height: TOTAL_ITEM_HEIGHT,
+                  position: "absolute",
+                  top: index * TOTAL_ITEM_HEIGHT,
                 }}
               >
                 <HorizontalList
